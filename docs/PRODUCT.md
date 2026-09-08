@@ -2,9 +2,9 @@
 
 ## Vision
 
-Build a Telegram-first music platform that lets users discover, identify, organize, and access music from multiple services through one simple interface.
+Build a Telegram-first music platform that lets users discover, identify, organize, and access music from multiple sources through one simple interface.
 
-The product should not depend on a single music provider.
+SongDrop should not depend on a single music provider or a fixed list of platforms.
 
 ## Core Inputs
 
@@ -14,29 +14,36 @@ Users should eventually be able to provide:
 - Deezer links
 - Apple Music links
 - YouTube links
+- SoundCloud links
+- other supported music or media URLs
 - song names
 - artist names
 - album names
 
-The bot should resolve those inputs into a common internal music representation.
+The bot should resolve those inputs into a common internal music representation whenever possible.
+
+Known providers may receive provider-specific handling, while other URLs can be passed to a generic media-resolution layer to determine whether SongDrop can process them.
 
 ## MVP
 
 Users can:
 
 - search for a song by name
-- send a supported music link
+- send a music or media link
 - identify the corresponding track
 - view track metadata
-- handle individual tracks
-- handle albums
+- download supported individual tracks
+- browse and download supported albums
 
-Initial supported link sources should include:
+Initial first-class link sources should include:
 
 - Spotify
 - Deezer
 - Apple Music
 - YouTube
+- SoundCloud
+
+Other valid URLs may also be processed when supported by SongDrop's media-resolution and acquisition tools.
 
 ## Future Features
 
@@ -52,7 +59,8 @@ Initial supported link sources should include:
 - add/remove tracks
 - rename playlists
 - share playlists
-- eventually import external playlists
+- import external playlists
+- download supported playlists
 
 ### Discovery
 
@@ -72,9 +80,9 @@ Potential future features:
 
 ## Product Principle
 
-External music services are input and metadata sources, not the center of the product.
+External music services are sources of links, metadata, discovery, and media capabilities, but they are not the center of the product.
 
-The bot should operate on its own normalized concepts such as:
+SongDrop should operate on its own normalized concepts such as:
 
 - Track
 - Artist
@@ -82,16 +90,19 @@ The bot should operate on its own normalized concepts such as:
 - Playlist
 - User
 
+The product should remain extensible so additional providers and media sources can be supported without redesigning the core domain model.
+
 ## Core MVP Workflow
 
 A user can:
 
-1. Send a Spotify, Deezer, Apple Music, or YouTube link, or search by song name.
-2. The bot identifies the intended music and resolves it into a provider-neutral track or album.
-3. If the input is ambiguous, the bot shows matching results and lets the user choose.
-4. The bot displays basic metadata such as title, artist, album, artwork, and duration.
-5. The bot resolves an available media source for the selected track.
-6. When the service is permitted to provide that media, the bot delivers the actual audio file to the user through Telegram.
-7. For albums, the user can view the track list and request individual tracks or the supported album download workflow.
+1. Send a Spotify, Deezer, Apple Music, YouTube, SoundCloud, or other supported media link, or search by song name.
+2. SongDrop classifies the input and determines which resolver should handle it.
+3. The bot identifies the intended music and resolves it into a provider-neutral track or album when possible.
+4. If the input is ambiguous, the bot shows matching results and lets the user choose.
+5. The bot displays basic metadata such as title, artist, album, artwork, and duration.
+6. The bot resolves an available media source for the selected track.
+7. If SongDrop can acquire the requested media, it processes the audio and delivers the file through Telegram.
+8. For albums, the user can view the track list and request individual tracks or the supported album download workflow.
 
 External playlist downloads are not part of the MVP.
