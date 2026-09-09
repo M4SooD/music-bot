@@ -42,7 +42,7 @@ function formatDuration(durationSeconds: number): string {
 
 export function createMediaInspectionReply(
   metadata: MediaInspectionResult,
-  provider: Extract<KnownProvider, "youtube" | "soundcloud">,
+  provider?: Extract<KnownProvider, "youtube" | "soundcloud">,
 ): string {
   const creator = metadata.artist ?? metadata.uploader;
   const lines = [
@@ -51,7 +51,7 @@ export function createMediaInspectionReply(
     ...(metadata.durationSeconds !== undefined
       ? [`Duration: ${formatDuration(metadata.durationSeconds)}`]
       : []),
-    `Source: ${providerLabels[provider]}`,
+    `Source: ${provider ? providerLabels[provider] : metadata.source}`,
   ];
 
   return lines.join("\n");
@@ -59,4 +59,8 @@ export function createMediaInspectionReply(
 
 export function createMediaInspectionErrorReply(): string {
   return "I couldn't inspect that media link. Please try again later.";
+}
+
+export function createUnsafeUrlReply(): string {
+  return "This link cannot be accessed safely.";
 }

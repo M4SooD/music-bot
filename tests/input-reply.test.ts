@@ -5,6 +5,7 @@ import {
   createInputReply,
   createMediaInspectionErrorReply,
   createMediaInspectionReply,
+  createUnsafeUrlReply,
 } from "../src/telegram/input-reply.js";
 
 describe("createInputReply", () => {
@@ -81,6 +82,16 @@ describe("createInputReply", () => {
     );
   });
 
+  it("uses the normalized inspection source for a generic media URL", () => {
+    expect(
+      createMediaInspectionReply({
+        id: "track-789",
+        title: "Generic upload",
+        source: "GenericMedia",
+      }),
+    ).toBe("Title: Generic upload\nSource: GenericMedia");
+  });
+
   it("formats hour-long durations", () => {
     expect(
       createMediaInspectionReply(
@@ -98,6 +109,12 @@ describe("createInputReply", () => {
   it("returns a safe inspection failure message", () => {
     expect(createMediaInspectionErrorReply()).toBe(
       "I couldn't inspect that media link. Please try again later.",
+    );
+  });
+
+  it("returns a safe inaccessible-link message", () => {
+    expect(createUnsafeUrlReply()).toBe(
+      "This link cannot be accessed safely.",
     );
   });
 });
