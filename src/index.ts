@@ -1,7 +1,6 @@
 import { Bot } from "grammy";
 
-import { classifyInput } from "./domain/classify-input.js";
-import { createInputReply } from "./telegram/input-reply.js";
+import { createMessageReply } from "./telegram/create-message-reply.js";
 
 const token = process.env.BOT_TOKEN;
 
@@ -20,9 +19,7 @@ bot.command("start", async (context) => {
 });
 
 bot.on("message:text", async (context) => {
-  const input = classifyInput(context.message.text);
-
-  await context.reply(createInputReply(input));
+  await context.reply(await createMessageReply(context.message.text));
 });
 
 process.once("SIGINT", () => bot.stop());

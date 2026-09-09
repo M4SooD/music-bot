@@ -13,7 +13,7 @@ const YT_DLP_ARGUMENTS = [
   "--",
 ] as const;
 
-export type YtDlpInspectionResult = {
+export type MediaInspectionResult = {
   id: string;
   title: string;
   artist?: string;
@@ -67,7 +67,7 @@ function requiredString(
   return value;
 }
 
-export function parseYtDlpJson(output: string): YtDlpInspectionResult {
+export function parseYtDlpJson(output: string): MediaInspectionResult {
   let parsed: unknown;
 
   try {
@@ -141,7 +141,7 @@ function validateMediaUrl(value: string): void {
 
 export async function inspectMediaUrl(
   url: string,
-): Promise<YtDlpInspectionResult> {
+): Promise<MediaInspectionResult> {
   const normalizedUrl = url.trim();
   validateMediaUrl(normalizedUrl);
 
