@@ -1,6 +1,8 @@
-import { spawn } from "node:child_process";
+import {
+  runYtDlpProcess,
+  YtDlpProcessError,
+} from "./yt-dlp-process.js";
 
-const YT_DLP_EXECUTABLE = "yt-dlp";
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_OUTPUT_BYTES = 5 * 1024 * 1024;
 
@@ -145,118 +147,25 @@ export async function inspectMediaUrl(
   const normalizedUrl = url.trim();
   validateMediaUrl(normalizedUrl);
 
-  return new Promise((resolve, reject) => {
-    const child = spawn(YT_DLP_EXECUTABLE, [...YT_DLP_ARGUMENTS, normalizedUrl], {
-      shell: false,
-      stdio: ["ignore", "pipe", "pipe"],
-      windowsHide: true,
+  let output: string;
+
+  try {
+    output = await runYtDlpProcess([...YT_DLP_ARGUMENTS, normalizedUrl], {
+      timeoutMs: DEFAULT_TIMEOUT_MS,
+      maxOutputBytes: MAX_OUTPUT_BYTES,
     });
-    const stdoutChunks: Buffer[] = [];
-    const stderrChunks: Buffer[] = [];
-    let stdoutBytes = 0;
-    let stderrBytes = 0;
-    let settled = false;
-    let outputLimitExceeded = false;
+  } catch (error) {
+    if (error instanceof YtDlpProcessError) {
+      const message =
+        error.code === "PROCESS_TIMEOUT"
+          ? `yt-dlp inspection timed out after ${DEFAULT_TIMEOUT_MS}ms`
+          : error.message;
 
-    const settle = (callback: () => void): void => {
-      if (settled) {
-        return;
-      }
+      throw new YtDlpInspectionError(error.code, message, { cause: error });
+    }
 
-      settled = true;
-      clearTimeout(timeout);
-      callback();
-    };
+    throw error;
+  }
 
-    const collectOutput = (
-      chunk: Buffer,
-      chunks: Buffer[],
-      currentBytes: number,
-    ): number => {
-      const nextBytes = currentBytes + chunk.length;
-
-      if (nextBytes > MAX_OUTPUT_BYTES) {
-        outputLimitExceeded = true;
-        child.kill("SIGKILL");
-        return nextBytes;
-      }
-
-      chunks.push(chunk);
-      return nextBytes;
-    };
-
-    child.stdout.on("data", (chunk: Buffer) => {
-      stdoutBytes = collectOutput(chunk, stdoutChunks, stdoutBytes);
-    });
-
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderrBytes = collectOutput(chunk, stderrChunks, stderrBytes);
-    });
-
-    const timeout = setTimeout(() => {
-      child.kill("SIGKILL");
-      settle(() => {
-        reject(
-          new YtDlpInspectionError(
-            "PROCESS_TIMEOUT",
-            `yt-dlp inspection timed out after ${DEFAULT_TIMEOUT_MS}ms`,
-          ),
-        );
-      });
-    }, DEFAULT_TIMEOUT_MS);
-
-    child.on("error", (error: NodeJS.ErrnoException) => {
-      settle(() => {
-        if (error.code === "ENOENT") {
-          reject(
-            new YtDlpInspectionError(
-              "EXECUTABLE_NOT_FOUND",
-              "yt-dlp executable was not found on PATH",
-              { cause: error },
-            ),
-          );
-          return;
-        }
-
-        reject(
-          new YtDlpInspectionError(
-            "PROCESS_START_FAILED",
-            "yt-dlp process could not be started",
-            { cause: error },
-          ),
-        );
-      });
-    });
-
-    child.on("close", (exitCode) => {
-      settle(() => {
-        if (outputLimitExceeded) {
-          reject(
-            new YtDlpInspectionError(
-              "OUTPUT_LIMIT_EXCEEDED",
-              `yt-dlp output exceeded the ${MAX_OUTPUT_BYTES}-byte limit`,
-            ),
-          );
-          return;
-        }
-
-        const stdout = Buffer.concat(stdoutChunks).toString("utf8");
-        if (exitCode !== 0) {
-          reject(
-            new YtDlpInspectionError(
-              "PROCESS_EXIT_FAILED",
-              "yt-dlp exited with a non-zero exit code",
-            ),
-          );
-          return;
-        }
-
-        try {
-          resolve(parseYtDlpJson(stdout));
-        } catch (error) {
-          reject(error);
-        }
-      });
-    });
-  });
+  return parseYtDlpJson(output);
 }
