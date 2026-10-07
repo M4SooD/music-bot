@@ -64,3 +64,11 @@ export function createMediaInspectionErrorReply(): string {
 export function createUnsafeUrlReply(): string {
   return "This link cannot be accessed safely.";
 }
+
+export function createMediaDownloadErrorReply(): string {
+  return "I couldn't download that media link. Please try again later.";
+}
+
+export function createMediaUploadErrorReply(): string {
+  return "I couldn't send the audio. Please try again later.";
+}

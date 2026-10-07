@@ -1,6 +1,6 @@
 import { Bot } from "grammy";
 
-import { createMessageReply } from "./telegram/create-message-reply.js";
+import { handleMessage } from "./telegram/handle-message.js";
 
 const token = process.env.BOT_TOKEN;
 
@@ -19,7 +19,12 @@ bot.command("start", async (context) => {
 });
 
 bot.on("message:text", async (context) => {
-  await context.reply(await createMessageReply(context.message.text));
+  await handleMessage(context.message.text, context);
+});
+
+bot.catch(() => {
+  // Avoid leaking transport, filesystem, or process details into logs or replies.
+  console.error("SongDrop could not finish handling a message.");
 });
 
 process.once("SIGINT", () => bot.stop());
