@@ -88,8 +88,9 @@ describe("handleMessage", () => {
     expect(f.cleanup).not.toHaveBeenCalled();
   });
 
-  it("sends a fixed safe error when download fails", async () => {
+  it.each([true, false])("sends a fixed safe download error (inspection succeeds: %s)", async (inspectionSucceeds) => {
     const f = fixture();
+    if (!inspectionSucceeds) f.inspect.mockRejectedValue(new Error("private inspection stderr"));
     f.download.mockRejectedValue(new Error("yt-dlp stderr C:\\private\\temp stack details LOGIN_REQUIRED"));
     await handleMessage("https://soundcloud.com/example/track", f.transport, f.dependencies);
 
@@ -97,6 +98,7 @@ describe("handleMessage", () => {
       "Preparing your audio…",
       "I couldn't download that media link. Please try again later.",
     ]);
+    expect(f.download).toHaveBeenCalledOnce();
     expect(f.transport.replyWithAudio).not.toHaveBeenCalled();
     expect(f.cleanup).not.toHaveBeenCalled();
   });
@@ -112,8 +114,9 @@ describe("handleMessage", () => {
     expect(f.cleanup).toHaveBeenCalledOnce();
   });
 
-  it("sends a safe upload error and cleans after Telegram rejects the audio", async () => {
+  it.each([true, false])("sends a safe upload error and cleans (inspection succeeds: %s)", async (inspectionSucceeds) => {
     const f = fixture();
+    if (!inspectionSucceeds) f.inspect.mockRejectedValue(new Error("private inspection stderr"));
     f.transport.replyWithAudio.mockRejectedValue(new Error("Telegram private error C:\\temp\\track.mp3"));
     await handleMessage("https://soundcloud.com/example/track", f.transport, f.dependencies);
 
@@ -121,8 +124,12 @@ describe("handleMessage", () => {
     expect(f.cleanup).toHaveBeenCalledOnce();
   });
 
-  it.each(["resolve", "reject"] as const)("keeps the resource until a pending upload settles (%s)", async (outcome) => {
+  it.each([
+    ["resolve", true], ["reject", true],
+    ["resolve", false], ["reject", false],
+  ] as const)("keeps the resource until upload settles (%s, inspection succeeds: %s)", async (outcome, inspectionSucceeds) => {
     const f = fixture();
+    if (!inspectionSucceeds) f.inspect.mockRejectedValue(new Error("private inspection stderr"));
     let resolveUpload!: (value: Awaited<ReturnType<Context["replyWithAudio"]>>) => void;
     let rejectUpload!: (error: Error) => void;
     const upload = new Promise<Awaited<ReturnType<Context["replyWithAudio"]>>>((resolve, reject) => {
@@ -178,12 +185,32 @@ describe("handleMessage", () => {
     expect(f.transport.reply).toHaveBeenCalledExactlyOnceWith("Preparing your audio…");
   });
 
-  it("does not download when inspection fails", async () => {
+  it.each([
+    ["https://soundcloud.com/example/track", false],
+    ["https://youtu.be/video-123", false],
+    ["https://media.example.test/track", true],
+    ["http://media.example.test/track", true],
+  ])("downloads and uploads without metadata when inspection fails for %s", async (url, generic) => {
     const f = fixture();
-    f.inspect.mockRejectedValue(new Error("private stderr"));
-    await handleMessage("https://soundcloud.com/example/track", f.transport, f.dependencies);
-    expect(f.transport.reply).toHaveBeenCalledExactlyOnceWith("I couldn't inspect that media link. Please try again later.");
-    expect(f.download).not.toHaveBeenCalled();
+    f.inspect.mockImplementation(async () => {
+      f.calls.push("inspect");
+      throw new Error("private yt-dlp stderr C:\\temp\\media and stack details");
+    });
+    await handleMessage(url, f.transport, f.dependencies);
+
+    expect(f.calls).toEqual([
+      ...(generic ? ["safety"] : []), "inspect", "reply", "download", "audio", "cleanup",
+    ]);
+    if (generic) expect(f.assertSafe).toHaveBeenCalledExactlyOnceWith(url);
+    else expect(f.assertSafe).not.toHaveBeenCalled();
+    expect(f.inspect).toHaveBeenCalledExactlyOnceWith(url);
+    expect(f.download).toHaveBeenCalledExactlyOnceWith(url);
+    expect(f.transport.reply).toHaveBeenCalledExactlyOnceWith("Preparing your audio…");
+    expect(f.transport.replyWithAudio).toHaveBeenCalledExactlyOnceWith(expect.any(InputFile), {});
+    expect(f.transport.replyWithAudio.mock.calls[0]?.[0]).toMatchObject({
+      fileData: f.file.filePath, filename: f.file.fileName,
+    });
+    expect(f.cleanup).toHaveBeenCalledOnce();
   });
 
   it.each([

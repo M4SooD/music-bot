@@ -41,9 +41,9 @@ export async function handleMessage(
   }
 
   try {
-    const performer = message.metadata.artist ?? message.metadata.uploader;
+    const performer = message.metadata?.artist ?? message.metadata?.uploader;
     await transport.replyWithAudio(new InputFile(file.filePath, file.fileName), {
-      title: message.metadata.title,
+      ...(message.metadata && { title: message.metadata.title }),
       ...(performer && { performer }),
     });
   } catch {

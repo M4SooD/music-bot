@@ -6,7 +6,6 @@ import {
 import { assertSafePublicUrl } from "../security/assert-safe-public-url.js";
 import {
   createInputReply,
-  createMediaInspectionErrorReply,
   createUnsafeUrlReply,
 } from "./input-reply.js";
 
@@ -17,7 +16,7 @@ export type MessagePreparationDependencies = {
 
 export type PreparedMessage =
   | { type: "text"; text: string }
-  | { type: "media"; url: string; metadata: MediaInspectionResult };
+  | { type: "media"; url: string; metadata?: MediaInspectionResult };
 
 async function inspectAndPrepareMedia(
   url: string,
@@ -27,7 +26,8 @@ async function inspectAndPrepareMedia(
     const metadata = await inspect(url);
     return { type: "media", url, metadata };
   } catch {
-    return { type: "text", text: createMediaInspectionErrorReply() };
+    // Metadata enriches delivery; only download determines media availability.
+    return { type: "media", url };
   }
 }
 

@@ -24,15 +24,16 @@ describe("prepareMessage", () => {
     "https://youtu.be/video-123",
     "https://soundcloud.com/example/track-456",
     "https://media.example.test/track",
-  ])("returns a safe text response when inspection fails for %s", async (url) => {
+    "http://media.example.test/track",
+  ])("prepares media without metadata when inspection fails for %s", async (url) => {
     const inspect = vi.fn().mockRejectedValue(
       new Error("private yt-dlp stderr C:\\temp\\media and stack details"),
     );
     const assertSafe = vi.fn().mockResolvedValue(undefined);
 
     await expect(prepareMessage(url, { inspect, assertSafe })).resolves.toEqual({
-      type: "text",
-      text: "I couldn't inspect that media link. Please try again later.",
+      type: "media", url,
     });
+    expect(inspect).toHaveBeenCalledExactlyOnceWith(url);
   });
 });
